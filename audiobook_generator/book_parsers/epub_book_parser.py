@@ -1,6 +1,7 @@
 import logging
 import re
 from typing import List, Tuple
+import opencc
 
 import ebooklib
 from bs4 import BeautifulSoup
@@ -10,13 +11,19 @@ from audiobook_generator.book_parsers.base_book_parser import BaseBookParser
 from audiobook_generator.config.general_config import GeneralConfig
 
 logger = logging.getLogger(__name__)
+converter = opencc.OpenCC('t2s')
+# URL 的正则表达式
+URL_PATTERN = re.compile(r"https?://[^\s<>\"']+")
+# 使用正则表达式匹配 [数字] 或 数字
+NODE_PATTERN = re.compile(r'href=.*?>(註?\[?\d+\]?)<')
 
 
 class EpubBookParser(BaseBookParser):
     def __init__(self, config: GeneralConfig):
         super().__init__(config)
         logger.setLevel(config.log)
-        self.book = epub.read_epub(self.config.input_file, {"ignore_ncx": True})
+        self.book = epub.read_epub(
+            self.config.input_file, {"ignore_ncx": True})
 
     def __str__(self) -> str:
         return super().__str__()
@@ -25,7 +32,8 @@ class EpubBookParser(BaseBookParser):
         if self.config.input_file is None:
             raise ValueError("Epub Parser: Input file cannot be empty")
         if not self.config.input_file.endswith(".epub"):
-            raise ValueError(f"Epub Parser: Unsupported file format: {self.config.input_file}")
+            raise ValueError(
+                f"Epub Parser: Unsupported file format: {self.config.input_file}")
 
     def get_book(self):
         return self.book
@@ -42,9 +50,38 @@ class EpubBookParser(BaseBookParser):
 
     def get_chapters(self, break_string) -> List[Tuple[str, str]]:
         chapters = []
-        for item in self.book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
-            content = item.get_content()
-            soup = BeautifulSoup(content, "lxml-xml")
+        t2s = False
+        for doc_id in self.book.spine:
+            title = None
+            item = self.book.get_item_with_id(doc_id[0])
+            soup = BeautifulSoup(item.content, "lxml-xml")
+
+            # 找標題
+            for tag_name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
+                if tag := soup.find(tag_name):
+                    title = tag.text.strip()
+                    break
+
+            # 如果沒有找到標題就跳過item
+            if not title:
+                continue
+
+            logger.debug(f"Raw title: <{title}>")
+            title = self._sanitize_title(title, break_string)
+            logger.debug(f"Sanitized title: <{title}>")
+
+            # 去除註腳數字[1] / 1
+            if self.config.remove_endnotes:
+                text_soup = str(soup)
+
+                # 使用正则表达式匹配 [数字] 或 数字
+                text_soup = re.sub(NODE_PATTERN, "", text_soup)
+                # 使用正则表达式匹配 URL
+                text_soup = re.sub(URL_PATTERN, "", text_soup)
+
+                soup = BeautifulSoup(text_soup, "lxml-xml",
+                                     from_encoding='utf-8')
+
             raw = soup.get_text(strip=False)
             logger.debug(f"Raw text: <{raw[:]}>")
 
@@ -56,46 +93,23 @@ class EpubBookParser(BaseBookParser):
             elif self.config.newline_mode == "none":
                 cleaned_text = re.sub(r"[\n]+", " ", raw.strip())
             else:
-                raise ValueError(f"Invalid newline mode: {self.config.newline_mode}")
+                raise ValueError(
+                    f"Invalid newline mode: {self.config.newline_mode}")
 
             logger.debug(f"Cleaned text step 1: <{cleaned_text[:]}>")
             cleaned_text = re.sub(r"\s+", " ", cleaned_text)
             logger.debug(f"Cleaned text step 2: <{cleaned_text[:100]}>")
 
-            # Removes end-note numbers
-            if self.config.remove_endnotes:
-                cleaned_text = re.sub(r'(?<=[a-zA-Z.,!?;”")])\d+', "", cleaned_text)
-                logger.debug(f"Cleaned text step 4: <{cleaned_text[:100]}>")
-
-            # Get proper chapter title
-            if self.config.title_mode == "auto":
-                title = ""
-                title_levels = ['title', 'h1', 'h2', 'h3']
-                for level in title_levels:
-                    if soup.find(level):
-                        title = soup.find(level).text
-                        break
-                if title == "" or re.match(r'^\d{1,3}$',title) is not None:
-                    title = cleaned_text[:60]
-            elif self.config.title_mode == "tag_text":
-                title = ""
-                title_levels = ['title', 'h1', 'h2', 'h3']
-                for level in title_levels:
-                    if soup.find(level):
-                        title = soup.find(level).text
-                        break
-                if title == "":
-                    title = "<blank>"
-            elif self.config.title_mode == "first_few":
-                title = cleaned_text[:60]
-            else:
-                raise ValueError("Unsupported title_mode")
-            logger.debug(f"Raw title: <{title}>")
-            title = self._sanitize_title(title, break_string)
-            logger.debug(f"Sanitized title: <{title}>")
-
+            # 如果文本是繁體中文，但輸出語音為簡體中文，則把文本轉換為簡體中文
+            if any(td in self.config.language for td in ["zh-TW", "zh-HK"]) and self.config.voice_name.startswith("zh-CN"):
+                if not t2s:
+                    logger.info("繁 -> 簡")
+                # 转换为简体中文，防止語音出現問題，例如：為什麼，金額...
+                cleaned_text = converter.convert(cleaned_text)
+                t2s = True  # 繁 -> 简 標是
             chapters.append((title, cleaned_text))
             soup.decompose()
+
         return chapters
 
     @staticmethod
