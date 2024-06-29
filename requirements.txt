@@ -1,8 +1,12 @@
+aiofiles==24.1.0
 beautifulsoup4==4.12.3
 EbookLib==0.18
+edge_tts==6.1.12
+lameenc==1.7.0
 mutagen==1.47.0
 openai==1.35.7
-requests==2.32.3
-socksio==1.0.0
-edge-tts==6.1.12
-pydub==0.25.1
+OpenCC==1.1.7
+opencc_python_reimplemented==0.1.7
+regex==2024.5.15
+Requests==2.32.3
+tkinterdnd2==0.3.0
