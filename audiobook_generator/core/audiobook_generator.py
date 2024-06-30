@@ -33,6 +33,8 @@ class AudiobookGenerator:
         return f"{self.config}"
 
     def run(self):
+        logger.info(
+            f"Start - {os.path.basename(self.config.input_file)}")
         try:
             book_parser = get_book_parser(self.config)
             tts_provider = get_tts_provider(self.config)
@@ -114,7 +116,8 @@ class AudiobookGenerator:
                 # logger.info(
                 #     f"✅ Converted chapter {idx}/{len(chapters)}: {title}"
                 # )
-            logger.info(f"All chapters converted. 🎉🎉🎉")
+            logger.info(
+                f"All Done - {os.path.basename(self.config.input_file)}🎉🎉🎉")
 
         except KeyboardInterrupt:
             logger.info("Job stopped by user.")
