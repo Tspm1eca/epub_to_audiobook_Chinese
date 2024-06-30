@@ -52,21 +52,27 @@ class EpubBookParser(BaseBookParser):
         chapters = []
         t2s = False
         for doc_id in self.book.spine:
-            title = None
+            title = ""
             item = self.book.get_item_with_id(doc_id[0])
             soup = BeautifulSoup(item.content, "lxml-xml")
 
-            # 找標題
+            # 使用'h1','h2'...標籤找標題
             for tag_name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
                 if tag := soup.find(tag_name):
                     title = tag.text.strip()
                     break
 
-            # 如果沒有找到標題就跳過item
             if not title:
-                continue
+                # 如果沒有找到標題，使用<p>標籤找標題
+                paragraphs = [p.get_text().strip()
+                              for p in soup.find_all('p') if p.get_text()]
+                if paragraphs:
+                    # 用前兩段有文字的<p>作為標題，限20字符
+                    title = '_'.join(paragraphs[:2])[:20]
+                else:
+                    continue
 
-            logger.debug(f"Raw title: <{title}>")
+            logger.debug(f"title: <{title}>")
             title = self._sanitize_title(title, break_string)
             logger.debug(f"Sanitized title: <{title}>")
 
@@ -79,8 +85,7 @@ class EpubBookParser(BaseBookParser):
                 # 使用正则表达式匹配 URL
                 text_soup = re.sub(URL_PATTERN, "", text_soup)
 
-                soup = BeautifulSoup(text_soup, "lxml-xml",
-                                     from_encoding='utf-8')
+                soup = BeautifulSoup(text_soup, "lxml-xml")
 
             raw = soup.get_text(strip=False)
             logger.debug(f"Raw text: <{raw[:]}>")
