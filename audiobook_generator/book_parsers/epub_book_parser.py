@@ -1,3 +1,4 @@
+from cgitb import text
 import logging
 import re
 from typing import List, Tuple
@@ -15,7 +16,7 @@ converter = opencc.OpenCC('t2s')
 # URL 的正则表达式
 URL_PATTERN = re.compile(r"https?://[^\s<>\"']+")
 # 使用正则表达式匹配 [数字] 或 数字
-NODE_PATTERN = re.compile(r'href=.*?>(註?\[?\d+\]?)<')
+NODE_PATTERN = re.compile(r'(href=.*?>)註?\[?\d+\]?(<)')
 
 
 class EpubBookParser(BaseBookParser):
@@ -27,6 +28,10 @@ class EpubBookParser(BaseBookParser):
 
     def __str__(self) -> str:
         return super().__str__()
+
+    def footnote_repalcer(self, match):
+        # 去除註腳
+        return f'{match.group(1)}{match.group(2)}'
 
     def validate_config(self):
         if self.config.input_file is None:
@@ -76,18 +81,20 @@ class EpubBookParser(BaseBookParser):
             title = self._sanitize_title(title, break_string)
             logger.debug(f"Sanitized title: <{title}>")
 
+            body_content = soup.find('body')    # 提取文章主體
+
             # 去除註腳數字[1] / 1
             if self.config.remove_endnotes:
-                text_soup = str(soup)
-
+                text_soup = str(body_content)
                 # 使用正则表达式匹配 [数字] 或 数字
-                text_soup = re.sub(NODE_PATTERN, "", text_soup)
-                # 使用正则表达式匹配 URL
+                text_soup = re.sub(
+                    NODE_PATTERN, self.footnote_repalcer, text_soup)
+                # # 使用正则表达式匹配 URL
                 text_soup = re.sub(URL_PATTERN, "", text_soup)
 
-                soup = BeautifulSoup(text_soup, "lxml-xml")
+                body_content = BeautifulSoup(text_soup, "lxml-xml")
 
-            raw = soup.get_text(strip=False)
+            raw = body_content.get_text(strip=False)
             logger.debug(f"Raw text: <{raw[:]}>")
 
             # Replace excessive whitespaces and newline characters based on the mode
@@ -112,6 +119,7 @@ class EpubBookParser(BaseBookParser):
                 # 转换为简体中文，防止語音出現問題，例如：為什麼，金額...
                 cleaned_text = converter.convert(cleaned_text)
                 t2s = True  # 繁 -> 简 標是
+
             chapters.append((title, cleaned_text))
             soup.decompose()
 
