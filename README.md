@@ -6,12 +6,13 @@ This project provides a command-line tool to convert EPUB ebooks into audiobooks
 
 *This project is developed with the help of ChatGPT.*
 
-## 魔改版本
+## 魔改版本（對比原版）
 - 去除註腳中的數字，如：[1]，1
 - 去除文字中的URL
 - 如果文本是繁體中文，但輸出語音為簡體中文，則把文本轉換為簡體中文（方便使用zh-CN-YunxiNeural和其他zh-CN系列聲音）
 - 優化edge-tts轉換（提升約1/3 ~ 1/2 速度）
 - 修正音質問題
+- 修正小數點後數字消失問題，例如：6.9公里 轉換後變成 6.公里
 - 使用EPub的spine次序排列標題名，不會再有轉換後亂序的問題
 - 取消在使用edge模式下，出現"Do you want to continue? (y/n)" 再次確定 （免費還要確定什麼？其他模式還是有的）
 
