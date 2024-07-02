@@ -7,6 +7,7 @@ This project provides a command-line tool to convert EPUB ebooks into audiobooks
 *This project is developed with the help of ChatGPT.*
 
 ## 魔改版本（對比原版）
+### 以下為對edge-tts的修改
 - 去除註腳中的數字，如：[1]，1
 - 去除文字中的URL
 - 如果文本是繁體中文，但輸出語音為簡體中文，則把文本轉換為簡體中文（方便使用zh-CN-YunxiNeural和其他zh-CN系列聲音）
