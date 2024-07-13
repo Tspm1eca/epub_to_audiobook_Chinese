@@ -16,10 +16,10 @@ This project provides a command-line tool to convert EPUB ebooks into audiobooks
 - 修正小數點後數字消失問題，例如：6.9公里 轉換後變成 6.公里
 - 使用EPub的spine次序排列標題名，不會再有轉換後亂序的問題
 - 取消在使用edge模式下，出現"Do you want to continue? (y/n)" 再次確定 （免費還要確定什麼？其他模式還是有的）
-- 增加註腳移植功能:
+- 增加註腳移植功能（ --fnote_transplant ）:
   - 移植註腳內容到內文中（見下文）
   - 去除所有不包含任何中文字符的註腳內容
-
+  - 注意： 如果同時使用 --fnote_transplant 和 --remove_endnotes，以--fnote_transplant 優先，自動無視--remove_endnotes
 
 ## 註腳移植
 
