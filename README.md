@@ -7,16 +7,32 @@ This project provides a command-line tool to convert EPUB ebooks into audiobooks
 *This project is developed with the help of ChatGPT.*
 
 ## 魔改版本（對比原版）
-### 以下為對edge-tts的修改
-- 去除註腳中的數字，如：[1]，1
-- 去除文字中的URL
-- 如果文本是繁體中文，但輸出語音為簡體中文，則把文本轉換為簡體中文（方便使用zh-CN-YunxiNeural和其他zh-CN系列聲音）
+### 以下只對edge-tts的修改
+- 去除內文中的註腳標籤
+- 去除內文中的URL
+- 如果文本是繁體中文，但用戶選擇輸出的語音為簡體中文，則把文本轉換為簡體中文（方便使用zh-CN-YunxiNeural和其他zh-CN系列聲音）
 - 優化edge-tts轉換（提升約1/3 ~ 1/2 速度）
 - 修正音質問題
 - 修正小數點後數字消失問題，例如：6.9公里 轉換後變成 6.公里
 - 使用EPub的spine次序排列標題名，不會再有轉換後亂序的問題
 - 取消在使用edge模式下，出現"Do you want to continue? (y/n)" 再次確定 （免費還要確定什麼？其他模式還是有的）
+- 增加註腳移植功能:
+  - 移植註腳內容到內文中（見下文）
+  - 去除所有不包含任何中文字符的註腳內容
 
+
+## 註腳移植
+
+- 原文內容：
+```
+你好嗎？如果覺得閱讀很費眼晴[1]，不如試試聽書。
+
+[1] 這只是個人假設不是完全的事實。
+```
+- 使用註腳移植後：
+```
+你好嗎？如果覺得閱讀很費眼晴（註解：這只是個人假設不是完全的事實。註解完畢。） ，不如試試聽書。
+```
 
 ## Audio Sample
 
@@ -54,14 +70,14 @@ When you import the generated MP3 files into Audiobookshelf, the chapter titles 
     ```bash
     git clone https://github.com/p0n1/epub_to_audiobook.git
     cd epub_to_audiobook
-    ```
+```
 
 2. Create a virtual environment and activate it:
 
     ```bash
     python3 -m venv venv
     source venv/bin/activate
-    ```
+```
 
 3. Install the required dependencies:
 
@@ -196,7 +212,7 @@ azure/edge specific:
                         paragraphs or sections (default: 1250, means 1.25 s).
                         Valid values range from 0 to 5000 milliseconds for
                         Azure TTS.
-```  
+```
 
 **Example**:
 
@@ -256,9 +272,9 @@ Check this [step by step guide](https://gist.github.com/p0n1/cba98859cdb6331cc1a
 
 ## How to Get Your Azure Cognitive Service Key?
 
-- Azure subscription - [Create one for free](https://azure.microsoft.com/free/cognitive-services)
-- [Create a Speech resource](https://portal.azure.com/#create/Microsoft.CognitiveServicesSpeechServices) in the Azure portal.
-- Get the Speech resource key and region. After your Speech resource is deployed, select **Go to resource** to view and manage keys. For more information about Cognitive Services resources, see [Get the keys for your resource](https://learn.microsoft.com/en-us/azure/cognitive-services/cognitive-services-apis-create-account#get-the-keys-for-your-resource).
+- Azure subscription - [Create one for free](https://azure.microsoft.com/free/cognitive-services)
+- [Create a Speech resource](https://portal.azure.com/#create/Microsoft.CognitiveServicesSpeechServices) in the Azure portal.
+- Get the Speech resource key and region. After your Speech resource is deployed, select **Go to resource** to view and manage keys. For more information about Cognitive Services resources, see [Get the keys for your resource](https://learn.microsoft.com/en-us/azure/cognitive-services/cognitive-services-apis-create-account#get-the-keys-for-your-resource).
 
 *Source: <https://learn.microsoft.com/en-us/azure/cognitive-services/speech-service/get-started-text-to-speech#prerequisites>*
 
