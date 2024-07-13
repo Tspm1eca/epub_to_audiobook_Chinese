@@ -23,7 +23,7 @@ This project provides a command-line tool to convert EPUB ebooks into audiobooks
 
 ## 註腳移植
 
-- 原文內容：
+- 書本文章內容：
 ```
 你好嗎？如果覺得閱讀很費眼晴[1]，不如試試聽書[2]。
 
