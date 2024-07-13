@@ -34,7 +34,7 @@ class AudiobookGenerator:
 
     def run(self):
         logger.info(
-            f"Start - {os.path.basename(self.config.input_file)}")
+            f"🟢 Start - {os.path.basename(self.config.input_file)}")
         try:
             book_parser = get_book_parser(self.config)
             tts_provider = get_tts_provider(self.config)

@@ -14,6 +14,7 @@ class GeneralConfig:
         self.chapter_start = args.chapter_start
         self.chapter_end = args.chapter_end
         self.remove_endnotes = args.remove_endnotes
+        self.fnote_transplant = args.fnote_transplant
 
         # TTS provider: common arguments
         self.tts = args.tts

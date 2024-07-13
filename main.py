@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 def handle_args():
-    parser = argparse.ArgumentParser(description="Convert text book to audiobook")
+    parser = argparse.ArgumentParser(
+        description="Convert text book to audiobook")
     parser.add_argument("input_file", help="Path to the EPUB file")
     parser.add_argument("output_folder", help="Path to the output folder")
     parser.add_argument(
@@ -78,7 +79,13 @@ def handle_args():
     parser.add_argument(
         "--remove_endnotes",
         action="store_true",
-        help="This will remove endnote numbers from the end or middle of sentences. This is useful for academic books.",
+        help="把註腳標誌刪除（Only for Chinese book），不可與--fnote_transplant共用。",
+    )
+
+    parser.add_argument(
+        "--fnote_transplant",
+        action="store_true",
+        help="用註腳內容取代註腳標誌（Only for Chinese book），不可與--remove_endnotes共用。",
     )
 
     parser.add_argument(
@@ -100,7 +107,7 @@ def handle_args():
     edge_tts_group.add_argument(
         "--voice_rate",
         help="""
-            Speaking rate of the text. Valid relative values range from -50%%(--xxx='-50%%') to +100%%. 
+            Speaking rate of the text. Valid relative values range from -50%%(--xxx='-50%%') to +100%%.
             For negative value use format --arg=value,
         """,
     )
@@ -126,7 +133,8 @@ def handle_args():
         help="Proxy server for the TTS provider. Format: http://[username:password@]proxy.server:port",
     )
 
-    azure_edge_tts_group = parser.add_argument_group(title="azure/edge specific")
+    azure_edge_tts_group = parser.add_argument_group(
+        title="azure/edge specific")
     azure_edge_tts_group.add_argument(
         "--break_duration",
         default="1250",
