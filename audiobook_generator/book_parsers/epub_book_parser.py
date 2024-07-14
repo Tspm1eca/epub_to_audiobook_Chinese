@@ -19,7 +19,9 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 class EpubBookParser(BaseBookParser):
     # URL 的正则表达式
-    URL_PATTERN = re.compile(r"https?://[^\s<>\"']+")
+    # URL_PATTERN = re.compile(r"https?://[^\s<>\"']+")
+    URL_PATTERN = re.compile(
+        r"((?:https?|ftps?|gopher|telnet|nntp)://[-%()_.!~*';/?:@&=+$,A-Za-z0-9]+|mailto:[-%()_.!~*';/?:@&=+$,A-Za-z0-9]+|news:[-%()_.!~*';/?:@&=+$,A-Za-z0-9]+)")
     FN_NOTE_PATTERN = re.compile(r'#')
     CHINESE_CHAR_PATTERN = re.compile(r'[\u4e00-\u9fff]')
     # >= 3個任何文字
@@ -119,13 +121,16 @@ class EpubBookParser(BaseBookParser):
         text_soup = soup.get_text() if not (
             self.config.remove_endnotes or self.config.fnote_transplant) else self._fnote_process(file_name, soup)
 
-        # Replace excessive whitespaces and newline characters based on the mode
-        cleaned_text = self._text_cleanup(text_soup.strip())
+        if not self.config.test_mode:
+            # Replace excessive whitespaces and newline characters based on the mode
+            cleaned_text = self._text_cleanup(text_soup.strip())
 
-        # 如果文本是繁體中文，但輸出語音為簡體中文，則把文本轉換為簡體中文
-        if self.config.language in ["zh-TW", "zh-HK"] and self.config.voice_name.startswith("zh-CN"):
-            # 繁轉簡
-            cleaned_text = self._t2s(cleaned_text)
+            # 如果文本是繁體中文，但輸出語音為簡體中文，則把文本轉換為簡體中文
+            if self.config.language in ["zh-TW", "zh-HK"] and self.config.voice_name.startswith("zh-CN"):
+                # 繁轉簡
+                cleaned_text = self._t2s(cleaned_text)
+        else:
+            cleaned_text = text_soup.strip()
 
         self.files[file_name] = None
         soup.decompose()
