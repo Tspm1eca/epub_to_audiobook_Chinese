@@ -41,10 +41,10 @@ class EpubBookParser(BaseBookParser):
 
         if self.config.language == "zh-CN":
             self.fnote_prefix = " （注解："
-            self.fnote_suffix = " 注解完毕。） "
+            self.fnote_suffix = " 回到正文） "
         elif self.config.language in ["zh-TW", "zh-HK"]:
             self.fnote_prefix = " （註解："
-            self.fnote_suffix = " 註解完畢。） "
+            self.fnote_suffix = " 回到正文） "
         else:
             self.fnote_prefix = " (Note: "
             self.fnote_suffix = " Note End.) "

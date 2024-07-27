@@ -103,6 +103,12 @@ def handle_args():
         help="Various TTS providers has different neural model names",
     )
 
+    parser.add_argument(
+        "--test_mode",
+        action="store_true",
+        help="For Compare Test",
+    )
+
     edge_tts_group = parser.add_argument_group(title="edge specific")
     edge_tts_group.add_argument(
         "--voice_rate",

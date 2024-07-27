@@ -8,6 +8,7 @@ class GeneralConfig:
         self.log = args.log
         self.no_prompt = args.no_prompt
         self.title_mode = args.title_mode
+        self.test_mode = args.test_mode
 
         # Book parser specific arguments
         self.newline_mode = args.newline_mode
