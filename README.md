@@ -33,7 +33,7 @@ This project provides a command-line tool to convert EPUB ebooks into audiobooks
 - 使用註腳移植後：
   - [2]不包含任何中文字符，所以被去除
 ```
-你好嗎？如果覺得閱讀很費眼晴（註解：這只是個人假設不是完全的事實。註解完畢。） ，不如試試聽書。
+你好嗎？如果覺得閱讀很費眼晴（註解：這只是個人假設不是完全的事實。回到正文） ，不如試試聽書。
 ```
 
 ## Audio Sample
