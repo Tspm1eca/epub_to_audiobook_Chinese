@@ -106,7 +106,7 @@ def handle_args():
     parser.add_argument(
         "--test_mode",
         action="store_true",
-        help="For Compare Test",
+        help="For Compare Test.",
     )
 
     edge_tts_group = parser.add_argument_group(title="edge specific")

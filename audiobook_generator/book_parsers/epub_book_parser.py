@@ -24,7 +24,7 @@ class EpubBookParser(BaseBookParser):
         r"((?:https?|ftps?|gopher|telnet|nntp)://[-%()_.!~*';/?:@&=+$,A-Za-z0-9]+|mailto:[-%()_.!~*';/?:@&=+$,A-Za-z0-9]+|news:[-%()_.!~*';/?:@&=+$,A-Za-z0-9]+)")
     FN_NOTE_PATTERN = re.compile(r'#')
     CHINESE_CHAR_PATTERN = re.compile(r'[\u4e00-\u9fff]')
-    # >= 3個任何文字
+    # >= 2個任何文字，用於「註1」情況
     TEXT_PATTERN = re.compile(r'\p{L}{2,}', re.UNICODE)
     SYMBOL_PATTERN = r"⤴↑↺"
 
@@ -60,6 +60,16 @@ class EpubBookParser(BaseBookParser):
         if not self.config.input_file.endswith(".epub"):
             raise ValueError(
                 f"Epub Parser: Unsupported file format: {self.config.input_file}")
+
+    def count_chinese_and_english_words(s):
+        # 中文字符計數
+        chinese_count = sum(1 for c in s if '\u4e00' <= c <= '\u9fff')
+
+        # 英文單詞計數，使用正則表達式匹配單詞
+        english_words = re.findall(r'\b[a-zA-Z]+\b', s)
+        english_word_count = len(english_words)
+
+        return chinese_count, english_word_count
 
     def get_book(self):
         return self.book
@@ -204,11 +214,11 @@ class EpubBookParser(BaseBookParser):
 
     def _fnote_process(self, file_name, soup):
         """ 移植註腳 / 移除註腳 + 清空註腳內容 """
-
         # 查找所有註腳和連結
         for fnote in soup.find_all('a', href=self.FN_NOTE_PATTERN):
-            # 非空字串 | href中沒有# | 註腳標籤少於3個任何文字，保留註腳標籤文字 （有些書直接用文字作註腳標籤）
-            if not fnote.string or "#" not in fnote['href'] or self.TEXT_PATTERN.search(fnote.string):
+            all_text = ''.join(fnote.stripped_strings)  # 递歸找出 a tag 中的所有文字
+            # 被處理後的註腳內容href中沒有# | 處理「註1」情況 | 處理只有圖片的註腳
+            if "#" not in fnote['href'] or self.TEXT_PATTERN.search(all_text) or (not all_text and not fnote.find('img')):
                 continue
 
             # 提取href中的文件名和ID
@@ -232,12 +242,12 @@ class EpubBookParser(BaseBookParser):
                 fnote_element = fnote_element.find_parent()
 
             new_fnote_content = ""
+            fnote.string = fnote.string or ""
 
             if self.config.fnote_transplant:
                 # 找出註腳內容 + 移除註腳標籤和符號表內的符號
                 cleaned_fnote_content = re.sub(
                     fr"[{re.escape(fnote.string)}{self.SYMBOL_PATTERN}]", '', fnote_content)
-
                 # 移植註腳內容到註腳標籤
                 if self.CHINESE_CHAR_PATTERN.search(cleaned_fnote_content):
                     # "註解： 註解內容 註解完畢。"

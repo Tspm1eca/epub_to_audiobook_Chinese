@@ -31,3 +31,8 @@ private_examples/
 
 # custom
 scripts/
+epub_to_audiobook_OLD/
+audio_fixer.py
+auto_ebook.bat
+auto_ebook.py
+auto_ebook.sh
