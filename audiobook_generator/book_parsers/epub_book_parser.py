@@ -26,7 +26,7 @@ class EpubBookParser(BaseBookParser):
     CHINESE_CHAR_PATTERN = re.compile(r'[\u4e00-\u9fff]')
     # >= 2個任何文字，用於「註1」情況
     TEXT_PATTERN = re.compile(r'\p{L}{2,}', re.UNICODE)
-    SYMBOL_PATTERN = r"⤴↑↺"
+    SYMBOL_PATTERN = r"⤴↑↺⏎"
 
     def __init__(self, config: GeneralConfig):
         super().__init__(config)
@@ -232,6 +232,14 @@ class EpubBookParser(BaseBookParser):
             if not fnote_element:
                 continue
 
+            # 如果初始找到的元素不是 p tag，向上查找直到找到 p tag
+            if fnote_element.name != 'p':
+                current_element = fnote_element
+                while current_element and current_element.name != 'p':
+                    current_element = current_element.find_parent()
+                # 如果找到 p tag，使用它；否則保持原 fnote_element
+                fnote_element = current_element if current_element else fnote_element
+
             # 移除註腳內容中的連結，防止註腳內容被當作標籤處理
             for tag_a in ([fnote_element] if fnote_element.name == 'a' else fnote_element.find_all('a')):
                 tag_a['href'] = ''
@@ -247,7 +255,11 @@ class EpubBookParser(BaseBookParser):
             if self.config.fnote_transplant:
                 # 找出註腳內容 + 移除註腳標籤和符號表內的符號
                 cleaned_fnote_content = re.sub(
-                    fr"[{re.escape(fnote.string)}{self.SYMBOL_PATTERN}]", '', fnote_content)
+                    fr"{re.escape(fnote.string)}", '', fnote_content, count=1)
+
+                cleaned_fnote_content = re.sub(
+                    fr"[{self.SYMBOL_PATTERN}]", '', cleaned_fnote_content)
+
                 # 移植註腳內容到註腳標籤
                 if self.CHINESE_CHAR_PATTERN.search(cleaned_fnote_content):
                     # "註解： 註解內容 註解完畢。"
