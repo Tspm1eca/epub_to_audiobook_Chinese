@@ -10,6 +10,7 @@ This project provides a command-line tool to convert EPUB ebooks into audiobooks
 ### 以下只對edge-tts的修改（因為只有edge-tts對中文支持最好）
 - 去除內文中的註腳標籤
 - 去除內文中的URL
+- MP3音頻不再是33kbps，而是48kpbs（不會再有沙啞聲）
 - 如果文本是繁體中文，但用戶選擇輸出的語音為簡體中文，則把文本轉換為簡體中文（方便使用zh-CN-YunxiNeural和其他zh-CN系列聲音）
 - 優化edge-tts轉換（提升約1/3 ~ 1/2 速度）
 - 修正音質問題
