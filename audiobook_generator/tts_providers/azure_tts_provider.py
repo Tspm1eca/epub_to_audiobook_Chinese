@@ -6,6 +6,9 @@ import os
 from datetime import datetime, timedelta
 from time import sleep
 import requests
+import asyncio
+import aiohttp
+import aiofiles
 
 from audiobook_generator.core.audio_tags import AudioTags
 from audiobook_generator.config.general_config import GeneralConfig
@@ -83,73 +86,97 @@ class AzureTTSProvider(BaseTTSProvider):
                     raise e
         raise Exception("Failed to get access token")
 
-    def text_to_speech(
+    async def async_get_access_token(self, session) -> str:
+        for retry in range(MAX_RETRIES):
+            try:
+                logger.info("Getting new access token")
+                async with session.post(self.TOKEN_URL, headers=self.TOKEN_HEADERS) as response:
+                    response.raise_for_status()
+                    access_token = await response.text()
+                    logger.info("Got new access token")
+                    return access_token
+            except aiohttp.ClientError as e:
+                logger.warning(
+                    f"Network error while getting access token (attempt {retry + 1}/{MAX_RETRIES}): {e}"
+                )
+                if retry < MAX_RETRIES - 1:
+                    await asyncio.sleep(2 ** retry)
+                else:
+                    raise e
+        raise Exception("Failed to get access token")
+
+    async def async_auto_renew_access_token(self, session) -> str:
+        if self.access_token is None or self.is_access_token_expired():
+            logger.info(
+                f"azure tts access_token doesn't exist or is expired, getting new one"
+            )
+            self.access_token = await self.async_get_access_token(session)
+            self.token_expiry_time = datetime.utcnow() + timedelta(minutes=9, seconds=1)
+        return self.access_token
+
+    async def async_text_to_speech(
             self,
             text: str,
             output_file: str,
             audio_tags: AudioTags,
     ):
-        # Adjust this value based on your testing
         max_chars = 1800 if self.config.language.startswith("zh") else 3000
-
         text_chunks = split_text(text, max_chars, self.config.language)
 
-        audio_segments = []
+        async with aiohttp.ClientSession() as session:
+            audio_segments = await self.process_chunks(session, text_chunks, audio_tags)
 
-        for i, chunk in enumerate(text_chunks, 1):
-            logger.debug(
-                f"Processing chunk {i} of {len(text_chunks)}, length={len(chunk)}, text=[{chunk}]"
-            )
-            escaped_text = html.escape(chunk)
-            logger.debug(f"Escaped text: [{escaped_text}]")
-            # replace MAGIC_BREAK_STRING with a break tag for section/paragraph break
-            escaped_text = escaped_text.replace(
-                self.get_break_string().strip(),
-                f" <break time='{self.config.break_duration}ms' /> ",
-            )  # strip in case leading bank is missing
-            logger.info(
-                f"Processing chapter-{audio_tags.idx} <{audio_tags.title}>, chunk {i} of {len(text_chunks)}"
-            )
-            ssml = f"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='{self.config.language}'><voice name='{self.config.voice_name}'>{escaped_text}</voice></speak>"
-            logger.debug(f"SSML: [{ssml}]")
-
-            for retry in range(MAX_RETRIES):
-                self.auto_renew_access_token()
-                headers = {
-                    "Authorization": f"Bearer {self.access_token}",
-                    "Content-Type": "application/ssml+xml",
-                    "X-Microsoft-OutputFormat": self.config.output_format,
-                    "User-Agent": "Python",
-                }
-                try:
-                    logger.info(
-                        "Sending request to Azure TTS, data length: " + str(len(ssml))
-                    )
-                    response = requests.post(
-                        self.TTS_URL, headers=headers, data=ssml.encode("utf-8")
-                    )
-                    response.raise_for_status()  # Will raise HTTPError for 4XX or 5XX status
-                    logger.info(
-                        "Got response from Azure TTS, response length: "
-                        + str(len(response.content))
-                    )
-                    audio_segments.append(io.BytesIO(response.content))
-                    break
-                except requests.exceptions.RequestException as e:
-                    logger.warning(
-                        f"Error while converting text to speech (attempt {retry + 1}): {e}"
-                    )
-                    if retry < MAX_RETRIES - 1:
-                        sleep(2 ** retry)
-                    else:
-                        raise e
-
-        with open(output_file, "wb") as outfile:
-            for segment in audio_segments:
-                segment.seek(0)
-                outfile.write(segment.read())
+            async with aiofiles.open(output_file, "wb") as outfile:
+                for segment in audio_segments:
+                    await outfile.write(segment)
 
         set_audio_tags(output_file, audio_tags)
+
+    async def process_chunks(self, session, text_chunks, audio_tags):
+        tasks = []
+        for i, chunk in enumerate(text_chunks, 1):
+            tasks.append(self.process_chunk(session, chunk, i, len(text_chunks), audio_tags))
+
+        audio_segments = await asyncio.gather(*tasks)
+        return audio_segments
+
+    async def process_chunk(self, session, chunk, i, total_chunks, audio_tags):
+        escaped_text = html.escape(chunk)
+        escaped_text = escaped_text.replace(
+            self.get_break_string().strip(),
+            f" <break time='{self.config.break_duration}ms' /> ",
+        )
+        ssml = f"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='{self.config.language}'><voice name='{self.config.voice_name}'>{escaped_text}</voice></speak>"
+
+        for retry in range(MAX_RETRIES):
+            await self.async_auto_renew_access_token(session)
+            headers = {
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/ssml+xml",
+                "X-Microsoft-OutputFormat": self.config.output_format,
+                "User-Agent": "Python",
+            }
+            try:
+                logger.info(
+                    f"Processing chapter-{audio_tags.idx} <{audio_tags.title}>, chunk {i} of {total_chunks}, data length: {len(ssml)}"
+                )
+                async with session.post(self.TTS_URL, headers=headers, data=ssml.encode("utf-8")) as response:
+                    response.raise_for_status()
+                    content = await response.read()
+                    logger.info(
+                        f"Got response from Azure TTS for chapter-{audio_tags.idx}, response length: {len(content)}"
+                    )
+                    return content
+            except aiohttp.ClientError as e:
+                logger.warning(
+                    f"Error while converting text to speech (attempt {retry + 1}): {e}"
+                )
+                if retry < MAX_RETRIES - 1:
+                    await asyncio.sleep(2 ** retry)
+                else:
+                    raise e
+        return b''
+
 
     def get_break_string(self):
         return " @BRK#"

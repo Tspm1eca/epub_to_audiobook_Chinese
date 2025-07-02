@@ -6,9 +6,11 @@ __pycache__/
 
 # Virtual environment
 venv/
+.venv/
 .idea
 .history/
 .run/
+.git_BK/
 
 # Temporary files
 *.tmp
@@ -23,6 +25,7 @@ venv/
 Thumbs.db
 
 .vscode
+.history
 
 # audio files
 audiobook_output/
@@ -31,8 +34,16 @@ private_examples/
 
 # custom
 scripts/
-epub_to_audiobook_OLD/
-audio_fixer.py
-auto_ebook.bat
-auto_ebook.py
-auto_ebook.sh
+*.onnx
+*.onnx.json
+
+# Models
+piper_models/*
+
+# Env files
+.env
+
+# Temp Test files
+test.py
+
+logs/

@@ -1,8 +1,10 @@
 import io
 import logging
 import math
+import asyncio
+import aiofiles
 
-from openai import OpenAI
+from openai import OpenAI, AsyncOpenAI
 
 from audiobook_generator.core.audio_tags import AudioTags
 from audiobook_generator.config.general_config import GeneralConfig
@@ -37,42 +39,39 @@ class OpenAITTSProvider(BaseTTSProvider):
         super().__init__(config)
 
         self.client = OpenAI()  # User should set OPENAI_API_KEY environment variable
+        self.async_client = AsyncOpenAI()
 
     def __str__(self) -> str:
         return super().__str__()
 
-    def text_to_speech(self, text: str, output_file: str, audio_tags: AudioTags):
+    async def async_text_to_speech(self, text: str, output_file: str, audio_tags: AudioTags):
         max_chars = 4000  # should be less than 4096 for OpenAI
-
         text_chunks = split_text(text, max_chars, self.config.language)
 
-        audio_segments = []
+        async with aiofiles.open(output_file, "wb") as outfile:
+            tasks = []
+            for i, chunk in enumerate(text_chunks, 1):
+                tasks.append(self.process_chunk(chunk, i, len(text_chunks), audio_tags))
 
-        for i, chunk in enumerate(text_chunks, 1):
-            logger.debug(
-                f"Processing chunk {i} of {len(text_chunks)}, length={len(chunk)}, text=[{chunk}]"
-            )
-            logger.info(
-                f"Processing chapter-{audio_tags.idx} <{audio_tags.title}>, chunk {i} of {len(text_chunks)}"
-            )
+            audio_segments = await asyncio.gather(*tasks)
 
-            logger.debug(f"Text: [{chunk}], length={len(chunk)}")
-
-            # NO retry for OpenAI TTS because SDK has built-in retry logic
-            response = self.client.audio.speech.create(
-                model=self.config.model_name,
-                voice=self.config.voice_name,
-                input=chunk,
-                response_format=self.config.output_format,
-            )
-            audio_segments.append(io.BytesIO(response.content))
-
-        with open(output_file, "wb") as outfile:
             for segment in audio_segments:
-                segment.seek(0)
-                outfile.write(segment.read())
+                await outfile.write(segment)
 
         set_audio_tags(output_file, audio_tags)
+
+    async def process_chunk(self, chunk: str, i: int, total_chunks: int, audio_tags: AudioTags) -> bytes:
+        logger.info(
+            f"Processing chapter-{audio_tags.idx} <{audio_tags.title}>, chunk {i} of {total_chunks}"
+        )
+        response = await self.async_client.audio.speech.create(
+            model=self.config.model_name,
+            voice=self.config.voice_name,
+            input=chunk,
+            response_format=self.config.output_format,
+        )
+        return response.content
+
 
     def get_break_string(self):
         return "   "

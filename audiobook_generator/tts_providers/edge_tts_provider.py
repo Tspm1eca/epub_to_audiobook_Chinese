@@ -5,6 +5,7 @@ import time
 import aiofiles
 import lameenc
 import regex as re
+import os
 
 from edge_tts import Communicate, list_voices
 
@@ -52,9 +53,7 @@ class CommWithPauses:
         self.pitch = f"+{kwargs.get('pitch', 0)}Hz"
         self.break_duration = break_duration
 
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
-        self.loop.run_until_complete(self.run_tts())
+        self.loop = asyncio.get_event_loop()
 
     async def process_segment(self, segment):
         if re.match(r'\[pause=\d+\]', segment):
@@ -80,7 +79,7 @@ class CommWithPauses:
                  # \p{L}為任何文字字符（所有國家）
                  for segment in segments if re.search(r'\p{L}', segment)]
         results = await asyncio.gather(*tasks)
-        self.combined_audio = b''.join(results)
+        return b''.join(results)
 
     def generate_silence(self, sample_rate=24000, bit_depth=16):
         num_frames = int(sample_rate * self.break_duration / 1000)
@@ -95,9 +94,9 @@ class CommWithPauses:
         mp3_data += encoder.flush()
         return mp3_data
 
-    async def save(self, audio_fname) -> None:
+    async def save(self, audio_fname, audio_data) -> None:
         async with aiofiles.open(audio_fname, "wb") as f:
-            await f.write(self.combined_audio)
+            await f.write(audio_data)
 
 
 class EdgeTTSProvider(BaseTTSProvider):
@@ -119,20 +118,19 @@ class EdgeTTSProvider(BaseTTSProvider):
     def __str__(self) -> str:
         return f"{self.config}"
 
-    def validate_config(self):
-        supported_voices = asyncio.run(get_supported_voices())
+    async def validate_config(self):
+        supported_voices = await get_supported_voices()
         # logger.debug(f"Supported voices: {supported_voices}")
         if self.config.voice_name not in supported_voices:
             raise ValueError(
                 f"EdgeTTS: Unsupported voice name: {self.config.voice_name}")
 
-    def text_to_speech(
+    async def async_text_to_speech(
             self,
             text: str,
             output_file: str,
             audio_tags: AudioTags,
     ):
-
         start = time.time()
         communicate = CommWithPauses(
             text=text,
@@ -145,10 +143,12 @@ class EdgeTTSProvider(BaseTTSProvider):
             proxy=self.config.proxy,
         )
 
-        asyncio.run(communicate.save(output_file))
+        audio_data = await communicate.run_tts()
+        await communicate.save(output_file, audio_data)
 
         set_audio_tags(output_file, audio_tags)
-        logger.info(f"Proceed Time: {round(time.time() - start, 2)}s")
+        logger.info(f"{os.path.basename(output_file)} Proceed Time: {round(time.time() - start, 2)}s")
+
 
     def estimate_cost(self, total_chars):
         return math.ceil(total_chars / 1000) * self.price
@@ -162,5 +162,5 @@ class EdgeTTSProvider(BaseTTSProvider):
         else:
             # Only mp3 supported in edge-tts https://github.com/rany2/edge-tts/issues/179
             raise NotImplementedError(
-                f"Unknown file extension for output format: {self.config.output_format}. Only mp3 supported in edge-tts. See https: // github.com/rany2/edge-tts/issues/179."
+                f"Unknown file extension for output format: {self.config.output_format}. Only mp3 supported in edge-tts. See https://github.com/rany2/edge-tts/issues/179."
             )

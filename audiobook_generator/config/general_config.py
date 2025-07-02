@@ -33,5 +33,14 @@ class GeneralConfig:
         self.voice_pitch = args.voice_pitch
         self.proxy = args.proxy
 
+        # TTS provider: OpenAI TTS Provider
+        self.ttsfm = args.ttsfm
+        self.instructions = args.instructions
+
+        self.sum_url = args.sum_url
+        self.sum_api = args.sum_api
+        self.sum_model = args.sum_model
+        self.sum_only = args.sum_only
+
     def __str__(self):
         return ', '.join(f"{key}={value}" for key, value in self.__dict__.items())
