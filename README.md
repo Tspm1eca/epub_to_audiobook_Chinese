@@ -4,10 +4,10 @@
 
 This project provides a command-line tool to convert EPUB ebooks into audiobooks. It now supports both the [Microsoft Azure Text-to-Speech API](https://learn.microsoft.com/en-us/azure/cognitive-services/speech-service/rest-text-to-speech) (alternativly [EdgeTTS](https://github.com/rany2/edge-tts)) and the [OpenAI Text-to-Speech API](https://platform.openai.com/docs/guides/text-to-speech) to generate the audio for each chapter in the ebook. The output audio files are optimized for use with [Audiobookshelf](https://github.com/advplyr/audiobookshelf).
 
-*This project is developed with the help of ChatGPT.*
+*This project is developed with the help of Gemini-2.5-pro.*
 
 ## 魔改版本（對比原版）
-### 以下只對edge-tts的修改
+### 以下只對edge-tts的修改（因為只有edge-tts對中文支持最好）
 - 去除內文中的註腳標籤
 - 去除內文中的URL
 - 如果文本是繁體中文，但用戶選擇輸出的語音為簡體中文，則把文本轉換為簡體中文（方便使用zh-CN-YunxiNeural和其他zh-CN系列聲音）
@@ -20,7 +20,11 @@ This project provides a command-line tool to convert EPUB ebooks into audiobooks
   - 移植註腳內容到內文中（見下文）
   - 去除所有不包含任何中文字符的註腳內容
   - 注意： 如果同時使用 --fnote_transplant 和 --remove_endnotes，以--fnote_transplant 優先，自動無視--remove_endnotes
-
+- 使用異步使得轉換速度更快（快超過一半時間）
+- 使用AI總結每一章內容，並生成MP3（懶人恩物）
+  - 如有需要可以自己改Prompt（位置：audiobook_generator\core\summary_generator.py）
+  - 如有需要可以自己改異步工作數（關鍵字：asyncio.Semaphore(5)）
+  
 ## 註腳移植
 
 - 書本文章內容：
@@ -35,6 +39,19 @@ This project provides a command-line tool to convert EPUB ebooks into audiobooks
 ```
 你好嗎？如果覺得閱讀很費眼晴（註解：這只是個人假設不是完全的事實。回到正文） ，不如試試聽書。
 ```
+
+## auto_ebook.py
+### 功能：
+- 全自動生成每章的文字版（txt）和音頻版（MP3）
+- 全自動生成每章的總結文字版（txt）和音頻版（MP3）
+  - 注意：生成總結需要API key，推薦Gemini-2.5-pro   
+
+### 使用：
+- 只需要把電子書的epub放到`_get_base_path`所設置的目錄內，然後運行auto_book.py即可。
+  
+# 因為我主要用在自動化環境，所有原版的WebUI，我就不對接了。
+
+---
 
 ## Audio Sample
 
